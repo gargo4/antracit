@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LEARN_TOPICS, LEVELS, MAX_IMAGES, MODES, PHOTO_ACTION_PREFIX, PHOTO_MODES, type Category, type Mode } from "../config/modes";
-import { stripActions } from "../lib/actions";
+import { splitStep, stripActions } from "../lib/actions";
+import { bumpStreak, loadStreak, plural, type Streak } from "../lib/streak";
 import { exportChat } from "../lib/export";
 import { compressImage } from "../lib/image";
 import { loadChats, loadSettings, saveChats, saveSettings, uid } from "../lib/storage";
@@ -48,6 +49,8 @@ export default function ChatApp() {
   const [pickTick, setPickTick] = useState(0);
   /** «SOS у доски»: следующий ответ — шпаргалка в 3–4 строки. */
   const [sos, setSos] = useState(false);
+  const [streak, setStreak] = useState<Streak>({ days: 0, total: 0, today: false });
+  const [online, setOnline] = useState(true);
 
   const abortRef = useRef<AbortController | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,8 +80,18 @@ export default function ChatApp() {
   useEffect(() => {
     setChats(loadChats());
     setSettings(loadSettings());
+    setStreak(loadStreak());
+    setOnline(navigator.onLine);
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
     setReady(true);
     refreshStatus();
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
   }, [refreshStatus]);
 
   useEffect(() => {
@@ -286,7 +299,12 @@ export default function ChatApp() {
       }
       acc += dec.decode();
       if (!acc.trim()) patch("Модель вернула пустой ответ. Попробуй переформулировать запрос.", { error: true });
-      else patch(acc);
+      else {
+        patch(acc);
+        const s = bumpStreak();
+        setStreak(s);
+        if (s.firstToday && s.days > 1) flash(`🔥 Серия: ${s.days} ${plural(s.days, "день", "дня", "дней")} подряд! Так держать`);
+      }
     } catch (e) {
       if (ac.signal.aborted) {
         if (!acc) patch("Остановлено.", { error: true });
@@ -296,6 +314,7 @@ export default function ChatApp() {
           error: !acc,
         });
         if (err?.code === "quota") setUnlimitedOpen(true);
+        else if (!navigator.onLine) patch("Нет интернета. Подключись и нажми «Попробовать снова».", { error: true });
       }
     } finally {
       setStreaming(false);
@@ -364,6 +383,7 @@ export default function ChatApp() {
   const triggerSos = () => {
     if (streaming) return;
     setSidebar(false);
+    navigator.vibrate?.(30); // короткий отклик на телефоне
     if (input.trim() || pending.length) {
       run(input, pending, { sos: true });
       return;
@@ -374,6 +394,18 @@ export default function ChatApp() {
 
   const send = () => run(input, pending);
   const stop = () => abortRef.current?.abort();
+
+  /** Последний незаконченный урок — для карточки «Продолжить» во вкладке «Учиться». */
+  const unfinished = (() => {
+    for (const c of [...chats].sort((x, y) => y.updatedAt - x.updatedAt)) {
+      if (c.mode !== "learn") continue;
+      const bot = [...c.messages].reverse().find((m) => m.role === "assistant" && !m.error);
+      if (!bot) continue;
+      const { step } = splitStep(bot.content, false);
+      if (step && step.n < step.total) return { chat: c, step };
+    }
+    return null;
+  })();
 
   const msgs = active?.messages ?? [];
   const lastBotId = [...msgs].reverse().find((m) => m.role === "assistant")?.id;
@@ -389,6 +421,7 @@ export default function ChatApp() {
         activeId={activeId}
         category={category}
         status={status}
+        streak={streak}
         onClose={() => setSidebar(false)}
         onNew={newChat}
         onSelect={selectChat}
@@ -407,6 +440,7 @@ export default function ChatApp() {
       />
 
       <main className="main">
+        {!online && <div className="offline">Нет интернета — проверь связь</div>}
         <header className="topbar glass">
           <button type="button" className="icon-btn menu-btn" onClick={() => setSidebar(true)} aria-label="Открыть меню">
             <Icon name="menu" size={20} />
@@ -453,6 +487,16 @@ export default function ChatApp() {
                   </button>
                 ))}
               </div>
+              {mode === "learn" && unfinished && (
+                <button type="button" className="resume" onClick={() => selectChat(unfinished.chat.id)}>
+                  <span className="resume-icon"><Icon name="book" size={20} /></span>
+                  <span className="resume-text">
+                    <b>Продолжить: {unfinished.chat.title.replace(/^Урок:\s*/, "")}</b>
+                    <small>шаг {unfinished.step.n} из {unfinished.step.total}</small>
+                  </span>
+                  <span className="resume-bar"><i style={{ width: `${(unfinished.step.n / unfinished.step.total) * 100}%` }} /></span>
+                </button>
+              )}
               {mode === "learn" && (
                 <div className="topics" aria-label="Популярные темы">
                   {LEARN_TOPICS[settings.level].map((t) => (

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CATEGORIES, type Category } from "../config/modes";
+import { plural, type Streak } from "../lib/streak";
 import type { Chat, Status } from "../lib/types";
 import { Icon, Logo } from "./Icons";
 
@@ -10,6 +11,7 @@ type Props = {
   activeId: string | null;
   category: Category;
   status: Status | null;
+  streak: Streak;
   onClose: () => void;
   onNew: () => void;
   onSelect: (id: string) => void;
@@ -77,6 +79,18 @@ export function Sidebar(p: Props) {
             <Icon name="close" />
           </button>
         </div>
+
+        {p.streak.total > 0 && (
+          <div className={`streak${p.streak.today ? " is-today" : ""}`} title={p.streak.today ? "Сегодня уже занимался — серия засчитана" : "Задай вопрос сегодня, чтобы не потерять серию"}>
+            <span className="streak-fire">🔥</span>
+            <span>
+              <b>{p.streak.days} {plural(p.streak.days, "день", "дня", "дней")}</b> подряд
+            </span>
+            <small>
+              {p.streak.total} {plural(p.streak.total, "ответ", "ответа", "ответов")}
+            </small>
+          </div>
+        )}
 
         <button type="button" className="btn-new sheen" onClick={p.onNew}>
           <Icon name="plus" /> Новый чат

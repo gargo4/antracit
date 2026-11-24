@@ -3,6 +3,7 @@
 import { getAiConfig, getLimits } from "../../../config/ai.server";
 import { buildSystemPrompt } from "../../../config/prompts";
 import { MAX_IMAGES, type Level, type Mode } from "../../../config/modes";
+import { burstCheck } from "../../../lib/burst";
 import { getKey, isReady, markFailure, markSuccess, orderedSlots, shouldRotate } from "../../../lib/keys";
 import { consume, cookieHeader, identify, quotaState, refund, type Identity } from "../../../lib/quota";
 
@@ -93,7 +94,12 @@ export async function POST(req: Request) {
     return fail(503, "no_keys", "Сервис ещё не настроен: на сервере не задан ни один API-ключ.", id);
   }
 
-  // ── 3. Бесплатный лимит ─────────────────────────────────────────
+  // ── 3. Не чаще N раз в минуту + бесплатный лимит на сутки ─────────
+  const wait = burstCheck([`u:${id.uid}`, ...(id.ip ? [`ip:${id.ip}`] : [])]);
+  if (wait > 0) {
+    return fail(429, "too_fast", `Слишком быстро 🙂 Подожди ${wait} сек. и отправь ещё раз.`, id, { "Retry-After": String(wait) });
+  }
+
   const q = await quotaState(id);
   if (q.left !== null && q.left <= 0) {
     return fail(429, "quota", "Бесплатные запросы на сегодня закончились. Открой «Безлимит» или возвращайся завтра.", id, {
