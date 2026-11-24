@@ -19,9 +19,10 @@ export const MODES: Record<
   compress: {
     label: "Сжать текст",
     short: "Сжать",
-    hint: "Вставь длинный текст — сделаю коротко и понятно",
-    placeholder: "Вставь длинный текст…",
-    category: "Сжатые тексты",
+    hint: "Сфоткай страницы книги или вставь текст — перескажу коротко и понятно",
+    placeholder: "Текст или фото страниц…",
+    category: "Пересказы",
+    defaultImagePrompt: "Перескажи коротко, о чём тут.",
   },
   vision: {
     label: "Разобрать фото",
@@ -56,5 +57,11 @@ export const QUICK_ACTIONS: { label: string; prompt: string }[] = [
 
 /** Кнопка, которая не пишет в чат, а открывает выбор фото. */
 export const PHOTO_ACTION_PREFIX = "📷";
+
+/** Сколько фото можно прикрепить к одному сообщению (например, несколько страниц главы). */
+export const MAX_IMAGES = 4;
+
+/** Вкладки, где можно прикреплять фото. В «Решить» фото переключает на «Фото». */
+export const PHOTO_MODES: Mode[] = ["compress", "vision"];
 
 export const KEY_LABELS = ["Ключ 1", "Ключ 2", "Запасной"] as const;

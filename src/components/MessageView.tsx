@@ -2,7 +2,7 @@
 import { memo, useState } from "react";
 import { PHOTO_ACTION_PREFIX, QUICK_ACTIONS } from "../config/modes";
 import { splitActions } from "../lib/actions";
-import type { Msg } from "../lib/types";
+import { msgThumbs, type Msg } from "../lib/types";
 import { Icon, Logo } from "./Icons";
 import { copyText, Markdown } from "./Markdown";
 
@@ -32,9 +32,13 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
       <div className="msg msg-user">
         <div className="user-col">
           <div className="bubble bubble-user">
-            {msg.thumb && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="bubble-thumb" src={msg.thumb} alt="Прикреплённое фото" />
+            {msgThumbs(msg).length > 0 && (
+              <div className={`bubble-thumbs n${Math.min(msgThumbs(msg).length, 4)}`}>
+                {msgThumbs(msg).map((t, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} className="bubble-thumb" src={t} alt={`Фото ${i + 1}`} />
+                ))}
+              </div>
             )}
             {msg.content && <div className="bubble-text">{msg.content}</div>}
           </div>

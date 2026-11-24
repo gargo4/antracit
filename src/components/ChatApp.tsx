@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LEVELS, MODES, PHOTO_ACTION_PREFIX, type Category, type Mode } from "../config/modes";
+import { LEVELS, MAX_IMAGES, MODES, PHOTO_ACTION_PREFIX, PHOTO_MODES, type Category, type Mode } from "../config/modes";
 import { stripActions } from "../lib/actions";
 import { exportChat } from "../lib/export";
 import { compressImage } from "../lib/image";
 import { loadChats, loadSettings, saveChats, saveSettings, uid } from "../lib/storage";
-import { DEFAULT_SETTINGS, type Chat, type Msg, type PendingImage, type Settings, type Status } from "../lib/types";
+import { DEFAULT_SETTINGS, msgThumbs, type Chat, type Msg, type PendingImage, type Settings, type Status } from "../lib/types";
 import { Composer } from "./Composer";
 import { Icon, Logo } from "./Icons";
 import { MessageView } from "./MessageView";
@@ -20,10 +20,10 @@ class ApiError extends Error {
   }
 }
 
-function makeTitle(text: string, hasImage: boolean): string {
+function makeTitle(text: string, hasImage: boolean, mode: Mode): string {
   const t = text.replace(/\s+/g, " ").trim();
   const base = t.length > 42 ? t.slice(0, 42).trimEnd() + "…" : t;
-  return base || (hasImage ? "Анализ фото" : "Новый чат");
+  return base || (hasImage ? (mode === "compress" ? "Пересказ по фото" : "Разбор фото") : "Новый чат");
 }
 
 type RunOpts = { mode?: Mode; base?: Msg[] };
@@ -35,7 +35,7 @@ export default function ChatApp() {
   const [category, setCategory] = useState<Category>("all");
   const [mode, setMode] = useState<Mode>("chat");
   const [input, setInput] = useState("");
-  const [pending, setPending] = useState<PendingImage | null>(null);
+  const [pending, setPending] = useState<PendingImage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -52,7 +52,7 @@ export default function ChatApp() {
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   /** Полные (сжатые) фото последних сообщений — для «Перегенерировать» без потери качества. */
-  const images = useRef(new Map<string, string>());
+  const images = useRef(new Map<string, string[]>());
 
   const active = chats.find((c) => c.id === activeId) ?? null;
 
@@ -128,7 +128,7 @@ export default function ChatApp() {
     if (streaming) return;
     setActiveId(null);
     setInput("");
-    setPending(null);
+    setPending([]);
     setSidebar(false);
     setFocusTick((t) => t + 1);
   };
@@ -165,25 +165,39 @@ export default function ChatApp() {
     flash("История очищена");
   };
 
-  const onFile = async (file: File) => {
-    try {
-      const maxBytes = status?.limits.maxImageBytes ?? 1_500_000;
-      setPending(await compressImage(file, maxBytes));
-      setMode("vision");
-    } catch (e) {
-      flash(e instanceof Error ? e.message : "Не удалось обработать фото");
+  /** Фото из галереи/камеры/буфера. В «Сжать» и «Фото» остаёмся во вкладке, из «Решить» — переходим в «Фото». */
+  const onFiles = async (files: File[]) => {
+    const free = MAX_IMAGES - pending.length;
+    if (free <= 0) {
+      flash(`Максимум ${MAX_IMAGES} фото за раз`);
+      return;
     }
+    const pick = files.filter((f) => f.type.startsWith("image/")).slice(0, free);
+    if (files.length > free) flash(`Добавлю только ${free} — максимум ${MAX_IMAGES} фото за раз`);
+    const maxBytes = status?.limits.maxImageBytes ?? 1_500_000;
+    const done: PendingImage[] = [];
+    for (const f of pick) {
+      try {
+        done.push(await compressImage(f, maxBytes));
+      } catch (e) {
+        flash(e instanceof Error ? e.message : "Не удалось обработать фото");
+      }
+    }
+    if (!done.length) return;
+    setPending((prev) => [...prev, ...done].slice(0, MAX_IMAGES));
+    if (!PHOTO_MODES.includes(mode)) setMode("vision");
   };
 
   const changeMode = (m: Mode) => {
     setMode(m);
-    if (m !== "vision" && pending) setPending(null); // фото относится только к режиму анализа
+    if (!PHOTO_MODES.includes(m) && pending.length) setPending([]); // в «Решить» фото не прикрепляются
   };
 
-  const run = async (rawText: string, image: PendingImage | null, opts: RunOpts = {}) => {
+  const run = async (rawText: string, imgs: PendingImage[], opts: RunOpts = {}) => {
     if (streaming) return;
-    const useMode: Mode = image ? "vision" : (opts.mode ?? mode);
-    const text = rawText.trim() || (image ? MODES.vision.defaultImagePrompt ?? "" : "");
+    const wanted: Mode = opts.mode ?? mode;
+    const useMode: Mode = imgs.length && !PHOTO_MODES.includes(wanted) ? "vision" : wanted;
+    const text = rawText.trim() || (imgs.length ? MODES[useMode].defaultImagePrompt ?? "Разбери это фото." : "");
     if (!text) return;
 
     const maxChars = status?.limits.maxTextChars ?? 8000;
@@ -192,28 +206,29 @@ export default function ChatApp() {
       return;
     }
     const baseMsgs = opts.base ?? active?.messages ?? [];
-    if (useMode === "vision" && !image && !baseMsgs.some((m) => m.thumb)) {
+    if (useMode === "vision" && !imgs.length && !baseMsgs.some((m) => msgThumbs(m).length)) {
       flash("Прикрепи фото: кнопка слева, галерея/камера или Ctrl+V");
       return;
     }
 
     const chatId = active?.id ?? uid();
-    const userMsg: Msg = { id: uid(), role: "user", content: text, thumb: image?.thumb, mode: useMode };
+    const userMsg: Msg = { id: uid(), role: "user", content: text, thumbs: imgs.length ? imgs.map((i) => i.thumb) : undefined, mode: useMode };
     const botMsg: Msg = { id: uid(), role: "assistant", content: "", mode: useMode };
-    if (image) images.current.set(userMsg.id, image.dataUrl);
+    if (imgs.length) images.current.set(userMsg.id, imgs.map((i) => i.dataUrl));
 
     const history = baseMsgs
       .filter((m) => !m.error && m.content.trim())
       .map((m) => {
         const content = m.role === "assistant" ? stripActions(m.content) : m.content;
-        return { role: m.role, content: m.thumb ? `${content}\n[к сообщению было приложено изображение]` : content };
+        const n = msgThumbs(m).length;
+        return { role: m.role, content: n ? `${content}\n[к сообщению было приложено фото: ${n} шт.]` : content };
       });
 
     setChats((prev) => {
       const exists = prev.some((c) => c.id === chatId);
       const list: Chat[] = exists
         ? prev
-        : [{ id: chatId, title: makeTitle(rawText.trim() || text, Boolean(image)), mode: useMode, updatedAt: Date.now(), messages: [] }, ...prev];
+        : [{ id: chatId, title: makeTitle(rawText.trim(), imgs.length > 0, useMode), mode: useMode, updatedAt: Date.now(), messages: [] }, ...prev];
       return list.map((c) =>
         c.id === chatId ? { ...c, mode: useMode, updatedAt: Date.now(), messages: [...(opts.base ?? c.messages), userMsg, botMsg] } : c,
       );
@@ -221,7 +236,7 @@ export default function ChatApp() {
     setActiveId(chatId);
     setMode(useMode);
     setInput("");
-    setPending(null);
+    setPending([]);
     setStreaming(true);
     stick.current = true;
     setAtBottom(true);
@@ -247,7 +262,7 @@ export default function ChatApp() {
         body: JSON.stringify({
           mode: useMode,
           level: settings.level,
-          messages: [...history, { role: "user", content: text, ...(image ? { image: image.dataUrl } : {}) }],
+          messages: [...history, { role: "user", content: text, ...(imgs.length ? { images: imgs.map((i) => i.dataUrl) } : {}) }],
         }),
       });
 
@@ -292,21 +307,26 @@ export default function ChatApp() {
     return { user: active.messages[idx], base: active.messages.slice(0, idx) };
   };
 
+  /** Фото сообщения для повторной отправки: полные (если ещё в памяти) или превью. */
+  const imagesOf = (m: Msg): PendingImage[] => {
+    const thumbs = msgThumbs(m);
+    const full = images.current.get(m.id) ?? thumbs;
+    return full.map((dataUrl, i) => ({ dataUrl, thumb: thumbs[i] ?? dataUrl, bytes: Math.floor(dataUrl.length * 0.75), name: `фото ${i + 1}` }));
+  };
+
   const regenerate = () => {
     const t = lastTurn();
     if (!t) return;
-    const full = images.current.get(t.user.id) ?? t.user.thumb;
-    const img: PendingImage | null = full ? { dataUrl: full, thumb: t.user.thumb ?? full, bytes: 0, name: "фото" } : null;
-    run(t.user.content, img, { mode: t.user.mode ?? active?.mode, base: t.base });
+    run(t.user.content, imagesOf(t.user), { mode: t.user.mode ?? active?.mode, base: t.base });
   };
 
   const editLast = () => {
     const t = lastTurn();
     if (!t || !active) return;
-    const full = images.current.get(t.user.id) ?? t.user.thumb;
+    const imgs = imagesOf(t.user);
     setChats((prev) => prev.map((c) => (c.id === active.id ? { ...c, messages: t.base } : c)));
     setInput(t.user.content);
-    if (full) setPending({ dataUrl: full, thumb: t.user.thumb ?? full, bytes: Math.floor(full.length * 0.75), name: "фото" });
+    setPending(imgs);
     setMode(t.user.mode ?? active.mode);
     setFocusTick((x) => x + 1);
   };
@@ -320,11 +340,13 @@ export default function ChatApp() {
   /** Нажатие на кнопку, которую предложил ИИ. */
   const onAction = (label: string) => {
     if (label.startsWith(PHOTO_ACTION_PREFIX)) {
-      changeMode("vision");
+      // в «Сжать» и «Фото» остаёмся — просто добавляем страницу; из «Решить» идём в «Фото»
+      if (!PHOTO_MODES.includes(active?.mode ?? mode)) changeMode("vision");
+      else setMode(active?.mode ?? mode);
       setPickTick((t) => t + 1); // откроет выбор фото
       return;
     }
-    run(label, null, { mode: active?.mode });
+    run(label, [], { mode: active?.mode });
   };
 
   const setLevel = (level: Settings["level"]) => setSettings((s) => ({ ...s, level }));
@@ -446,8 +468,8 @@ export default function ChatApp() {
           value={input}
           onChange={setInput}
           pending={pending}
-          onFile={onFile}
-          onRemoveImage={() => setPending(null)}
+          onFiles={onFiles}
+          onRemoveImage={(i) => setPending((prev) => prev.filter((_, j) => j !== i))}
           onSend={send}
           onStop={stop}
           streaming={streaming}

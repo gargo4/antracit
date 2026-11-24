@@ -2,7 +2,7 @@
 // и никогда не попадают в браузер.
 import { getAiConfig, getLimits } from "../../../config/ai.server";
 import { buildSystemPrompt } from "../../../config/prompts";
-import type { Level, Mode } from "../../../config/modes";
+import { MAX_IMAGES, type Level, type Mode } from "../../../config/modes";
 import { getKey, isReady, markFailure, markSuccess, orderedSlots, shouldRotate } from "../../../lib/keys";
 import { consume, cookieHeader, identify, quotaState, refund, type Identity } from "../../../lib/quota";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type InMsg = { role: "user" | "assistant"; content: string; image?: string };
+type InMsg = { role: "user" | "assistant"; content: string; images?: string[] };
 type OutPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
 type OutMsg = { role: "system" | "user" | "assistant"; content: string | OutPart[] };
 
@@ -53,7 +53,10 @@ export async function POST(req: Request) {
   for (const m of raw.slice(-limits.maxHistory)) {
     const r = m as Partial<InMsg>;
     if ((r?.role !== "user" && r?.role !== "assistant") || typeof r.content !== "string") continue;
-    msgs.push({ role: r.role, content: r.content, image: typeof r.image === "string" ? r.image : undefined });
+    // принимаем и новый формат images: string[], и старый image: string
+    const raw = (m as { images?: unknown; image?: unknown }) ?? {};
+    const imgs = Array.isArray(raw.images) ? raw.images.filter((x): x is string => typeof x === "string") : typeof raw.image === "string" ? [raw.image] : [];
+    msgs.push({ role: r.role, content: r.content, images: imgs.length ? imgs : undefined });
   }
   const last = msgs[msgs.length - 1];
   if (!last || last.role !== "user" || !last.content.trim()) {
@@ -62,16 +65,21 @@ export async function POST(req: Request) {
   if (last.content.length > limits.maxTextChars) {
     return fail(413, "text_too_long", `Слишком длинный текст: максимум ${limits.maxTextChars} символов.`, id);
   }
-  if (last.image) {
-    if (!IMAGE_RE.test(last.image)) {
-      return fail(400, "bad_image", "Неподдерживаемый формат изображения (нужен PNG, JPEG, WebP или GIF).", id);
+  if (last.images) {
+    if (last.images.length > MAX_IMAGES) {
+      return fail(413, "too_many_images", `Можно прикрепить максимум ${MAX_IMAGES} фото за раз.`, id);
     }
-    if (last.image.length > limits.maxImageBytes * 1.37) {
-      // base64 ≈ 4/3 от размера файла
-      return fail(413, "image_too_large", "Изображение слишком большое даже после сжатия.", id);
+    for (const img of last.images) {
+      if (!IMAGE_RE.test(img)) {
+        return fail(400, "bad_image", "Это фото не подходит. Нужен JPG, PNG, WebP или GIF.", id);
+      }
+      if (img.length > limits.maxImageBytes * 1.37) {
+        // base64 ≈ 4/3 от размера файла
+        return fail(413, "image_too_large", "Фото слишком большое даже после сжатия.", id);
+      }
     }
   }
-  const hasImage = Boolean(last.image);
+  const hasImage = Boolean(last.images?.length);
 
   // ── 2. Ключи ────────────────────────────────────────────────────
   const pinSet = process.env.ADMIN_PIN?.trim();
@@ -98,13 +106,11 @@ export async function POST(req: Request) {
   msgs.forEach((m, i) => {
     const isLast = i === msgs.length - 1;
     const text = isLast ? m.content : m.content.slice(0, limits.maxHistoryItemChars);
-    if (isLast && m.image) {
+    if (isLast && m.images?.length) {
+      const note = m.images.length > 1 ? `\n\n(Фото: ${m.images.length} шт., по порядку.)` : "";
       upstream.push({
         role: "user",
-        content: [
-          { type: "text", text },
-          { type: "image_url", image_url: { url: m.image } },
-        ],
+        content: [{ type: "text", text: text + note }, ...m.images.map((url): OutPart => ({ type: "image_url", image_url: { url } }))],
       });
     } else {
       upstream.push({ role: m.role, content: text });

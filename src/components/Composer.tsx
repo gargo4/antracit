@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
-import { MODE_ORDER, MODES, type Mode } from "../config/modes";
+import { MAX_IMAGES, MODE_ORDER, MODES, type Mode } from "../config/modes";
 import type { PendingImage } from "../lib/types";
 import { Icon, type IconName } from "./Icons";
 
@@ -28,9 +28,9 @@ type Props = {
   onMode: (m: Mode) => void;
   value: string;
   onChange: (v: string) => void;
-  pending: PendingImage | null;
-  onFile: (f: File) => void;
-  onRemoveImage: () => void;
+  pending: PendingImage[];
+  onFiles: (files: File[]) => void;
+  onRemoveImage: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
   streaming: boolean;
@@ -115,19 +115,19 @@ export function Composer(p: Props) {
   };
 
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
-    if (file) {
+    const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length) {
       e.preventDefault(); // Ctrl+V со скриншотом
-      p.onFile(file);
+      p.onFiles(files);
     }
   };
 
   const onDrop = (e: DragEvent) => {
     setDrag(false);
-    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
-    if (file) {
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length) {
       e.preventDefault();
-      p.onFile(file);
+      p.onFiles(files);
     }
   };
 
@@ -136,7 +136,8 @@ export function Composer(p: Props) {
     p.onSend();
   };
 
-  const canSend = !p.streaming && (p.value.trim().length > 0 || p.pending !== null);
+  const canSend = !p.streaming && (p.value.trim().length > 0 || p.pending.length > 0);
+  const full = p.pending.length >= MAX_IMAGES;
   const over = p.value.length > p.maxChars;
   const activeIdx = MODE_ORDER.indexOf(p.mode);
 
@@ -170,32 +171,50 @@ export function Composer(p: Props) {
         onDragLeave={() => setDrag(false)}
         onDrop={onDrop}
       >
-        {p.pending && (
-          <div className="attach">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.pending.thumb} alt="Превью фото" />
-            <div className="attach-info">
-              <b>{p.pending.name}</b>
-              <small>{p.pending.bytes ? `сжато до ${(p.pending.bytes / 1024).toFixed(0)} КБ` : "готово к отправке"}</small>
+        {p.pending.length > 0 && (
+          <div className="attach-strip">
+            {p.pending.map((img, i) => (
+              <div key={i} className="attach-tile">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.thumb} alt={`Фото ${i + 1}`} />
+                {p.pending.length > 1 && <span className="attach-num">{i + 1}</span>}
+                <button type="button" className="attach-x" onClick={() => p.onRemoveImage(i)} aria-label={`Убрать фото ${i + 1}`}>
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            ))}
+            {!full && (
+              <button type="button" className="attach-add" onClick={() => fileRef.current?.click()} aria-label="Добавить ещё фото">
+                <Icon name="plus" size={18} />
+                <small>страница</small>
+              </button>
+            )}
+            <div className="attach-meta">
+              {p.pending.length} / {MAX_IMAGES} фото
+              <small>{p.mode === "compress" ? "перескажу коротко" : "разберу, что на фото"}</small>
             </div>
-            <button type="button" className="icon-btn" onClick={p.onRemoveImage} aria-label="Убрать фото">
-              <Icon name="close" size={16} />
-            </button>
           </div>
         )}
 
         <div className="composer-row">
-          <button type="button" className="icon-btn attach-btn" onClick={() => fileRef.current?.click()} aria-label="Прикрепить фото" title="Фото: галерея, камера или Ctrl+V">
+          <button
+            type="button"
+            className="icon-btn attach-btn"
+            onClick={() => (full ? p.onToast(`Максимум ${MAX_IMAGES} фото за раз`) : fileRef.current?.click())}
+            aria-label="Прикрепить фото"
+            title="Фото: галерея, камера или Ctrl+V (до 4 страниц)"
+          >
             <Icon name="image" size={20} />
           </button>
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             hidden
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) p.onFile(f);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) p.onFiles(files);
               e.target.value = ""; // чтобы можно было выбрать тот же файл повторно
             }}
           />
@@ -240,7 +259,7 @@ export function Composer(p: Props) {
             {p.value.length} / {p.maxChars}
           </div>
         )}
-        {drag && <div className="drop-hint">Отпусти, чтобы прикрепить фото</div>}
+        {drag && <div className="drop-hint">Отпусти, чтобы прикрепить фото (до {MAX_IMAGES})</div>}
       </div>
     </div>
   );

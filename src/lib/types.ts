@@ -4,7 +4,9 @@ export type Msg = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  /** Маленькое превью приложенного фото (полная картинка локально не хранится). */
+  /** Маленькие превью приложенных фото (полные картинки локально не хранятся). */
+  thumbs?: string[];
+  /** Старый формат (одно фото) — для чатов, сохранённых раньше. */
   thumb?: string;
   error?: boolean;
   mode?: Mode;
@@ -39,3 +41,8 @@ export type Status = {
 };
 
 export type PendingImage = { dataUrl: string; thumb: string; bytes: number; name: string };
+
+/** Превью фото сообщения в любом формате (старом и новом). */
+export function msgThumbs(m: Msg): string[] {
+  return m.thumbs ?? (m.thumb ? [m.thumb] : []);
+}
