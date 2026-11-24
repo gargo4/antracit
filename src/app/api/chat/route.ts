@@ -44,9 +44,10 @@ export async function POST(req: Request) {
   } catch {
     return fail(400, "bad_json", "Некорректный запрос.", id);
   }
-  const b = (body ?? {}) as { mode?: string; level?: string; messages?: unknown };
+  const b = (body ?? {}) as { mode?: string; level?: string; sos?: unknown; messages?: unknown };
   const mode: Mode = b.mode === "compress" || b.mode === "vision" ? b.mode : "chat";
   const level: Level = b.level === "student" ? "student" : "school";
+  const sos = b.sos === true; // «SOS у доски» — ответ в 3–4 строки
 
   const raw = Array.isArray(b.messages) ? b.messages : [];
   const msgs: InMsg[] = [];
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
   await consume(id);
 
   // ── 4. Сообщения для нейросети ──────────────────────────────────
-  const upstream: OutMsg[] = [{ role: "system", content: buildSystemPrompt(mode, level) }];
+  const upstream: OutMsg[] = [{ role: "system", content: buildSystemPrompt(mode, level, sos) }];
   msgs.forEach((m, i) => {
     const isLast = i === msgs.length - 1;
     const text = isLast ? m.content : m.content.slice(0, limits.maxHistoryItemChars);
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
       model,
       messages: upstream,
       stream: true,
-      max_tokens: ai.maxOutputTokens,
+      max_tokens: sos ? Math.min(ai.maxOutputTokens, 400) : ai.maxOutputTokens,
       temperature: ai.temperature,
     });
 

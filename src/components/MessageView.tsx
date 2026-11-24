@@ -1,7 +1,8 @@
 "use client";
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { PHOTO_ACTION_PREFIX, QUICK_ACTIONS } from "../config/modes";
 import { splitActions } from "../lib/actions";
+import { canSpeak, speak } from "../lib/speech";
 import { msgThumbs, type Msg } from "../lib/types";
 import { Icon, Logo } from "./Icons";
 import { copyText, Markdown } from "./Markdown";
@@ -18,8 +19,25 @@ type Props = {
 
 function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRegenerate, onEdit }: Props) {
   const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [voiceOk, setVoiceOk] = useState(false);
+  const stopRef = useRef<(() => void) | null>(null);
+  useEffect(() => setVoiceOk(canSpeak()), []);
+  useEffect(() => () => stopRef.current?.(), []);
   const { text, actions } = msg.role === "assistant" ? splitActions(msg.content, streaming) : { text: msg.content, actions: [] };
   const nextSteps = actions.length ? actions : QUICK_ACTIONS.map((a) => a.prompt);
+
+  const toggleSpeak = () => {
+    if (speaking) {
+      stopRef.current?.();
+      return;
+    }
+    setSpeaking(true);
+    stopRef.current = speak(text, () => {
+      setSpeaking(false);
+      stopRef.current = null;
+    });
+  };
 
   const copy = async () => {
     await copyText(text);
@@ -60,7 +78,8 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
         <Logo size={22} />
       </div>
       <div className="bot-col">
-        <div className={`bubble bubble-bot${msg.error ? " is-error" : ""}`}>
+        <div className={`bubble bubble-bot${msg.error ? " is-error" : ""}${msg.sos && !msg.error ? " is-sos" : ""}`}>
+          {msg.sos && !msg.error && <div className="sos-label">🆘 Шпаргалка — можно читать вслух</div>}
           {text ? (
             msg.error ? <div className="bubble-text">{text}</div> : <Markdown text={text} />
           ) : (
@@ -89,6 +108,11 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
             {!msg.error && (
               <button type="button" className="chip" onClick={copy}>
                 <Icon name={copied ? "check" : "copy"} size={14} /> {copied ? "Скопировано" : "Копировать"}
+              </button>
+            )}
+            {!msg.error && voiceOk && (
+              <button type="button" className={`chip${speaking ? " is-on" : ""}`} onClick={toggleSpeak} aria-pressed={speaking}>
+                <Icon name={speaking ? "stop" : "volume"} size={14} /> {speaking ? "Стоп" : "Озвучить"}
               </button>
             )}
             {isLastBot && (

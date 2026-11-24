@@ -26,7 +26,7 @@ function makeTitle(text: string, hasImage: boolean, mode: Mode): string {
   return base || (hasImage ? (mode === "compress" ? "Пересказ по фото" : "Разбор фото") : "Новый чат");
 }
 
-type RunOpts = { mode?: Mode; base?: Msg[] };
+type RunOpts = { mode?: Mode; base?: Msg[]; sos?: boolean };
 
 export default function ChatApp() {
   const [ready, setReady] = useState(false);
@@ -46,6 +46,8 @@ export default function ChatApp() {
   const [atBottom, setAtBottom] = useState(true);
   const [focusTick, setFocusTick] = useState(0);
   const [pickTick, setPickTick] = useState(0);
+  /** «SOS у доски»: следующий ответ — шпаргалка в 3–4 строки. */
+  const [sos, setSos] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,8 +214,9 @@ export default function ChatApp() {
     }
 
     const chatId = active?.id ?? uid();
-    const userMsg: Msg = { id: uid(), role: "user", content: text, thumbs: imgs.length ? imgs.map((i) => i.thumb) : undefined, mode: useMode };
-    const botMsg: Msg = { id: uid(), role: "assistant", content: "", mode: useMode };
+    const isSos = opts.sos ?? sos;
+    const userMsg: Msg = { id: uid(), role: "user", content: text, thumbs: imgs.length ? imgs.map((i) => i.thumb) : undefined, mode: useMode, sos: isSos || undefined };
+    const botMsg: Msg = { id: uid(), role: "assistant", content: "", mode: useMode, sos: isSos || undefined };
     if (imgs.length) images.current.set(userMsg.id, imgs.map((i) => i.dataUrl));
 
     const history = baseMsgs
@@ -237,6 +240,7 @@ export default function ChatApp() {
     setMode(useMode);
     setInput("");
     setPending([]);
+    setSos(false);
     setStreaming(true);
     stick.current = true;
     setAtBottom(true);
@@ -262,6 +266,7 @@ export default function ChatApp() {
         body: JSON.stringify({
           mode: useMode,
           level: settings.level,
+          sos: isSos,
           messages: [...history, { role: "user", content: text, ...(imgs.length ? { images: imgs.map((i) => i.dataUrl) } : {}) }],
         }),
       });
@@ -317,7 +322,7 @@ export default function ChatApp() {
   const regenerate = () => {
     const t = lastTurn();
     if (!t) return;
-    run(t.user.content, imagesOf(t.user), { mode: t.user.mode ?? active?.mode, base: t.base });
+    run(t.user.content, imagesOf(t.user), { mode: t.user.mode ?? active?.mode, base: t.base, sos: Boolean(t.user.sos) });
   };
 
   const editLast = () => {
@@ -327,6 +332,7 @@ export default function ChatApp() {
     setChats((prev) => prev.map((c) => (c.id === active.id ? { ...c, messages: t.base } : c)));
     setInput(t.user.content);
     setPending(imgs);
+    setSos(Boolean(t.user.sos));
     setMode(t.user.mode ?? active.mode);
     setFocusTick((x) => x + 1);
   };
@@ -346,10 +352,25 @@ export default function ChatApp() {
       setPickTick((t) => t + 1); // откроет выбор фото
       return;
     }
-    run(label, [], { mode: active?.mode });
+    // после SOS-ответа «Ещё короче» и «Что спросит учитель» остаются короткими, «Объясни нормально» — обычный ответ
+    const lastBot = [...(active?.messages ?? [])].reverse().find((m) => m.role === "assistant");
+    const keepSos = Boolean(lastBot?.sos) && !/нормально|подробн|проще/i.test(label);
+    run(label, [], { mode: active?.mode, sos: keepSos });
   };
 
   const setLevel = (level: Settings["level"]) => setSettings((s) => ({ ...s, level }));
+
+  /** Кнопка SOS: если уже есть текст или фото — сразу шпаргалка; иначе включаем режим и ждём тему. */
+  const triggerSos = () => {
+    if (streaming) return;
+    setSidebar(false);
+    if (input.trim() || pending.length) {
+      run(input, pending, { sos: true });
+      return;
+    }
+    setSos((v) => !v);
+    setFocusTick((t) => t + 1);
+  };
 
   const send = () => run(input, pending);
   const stop = () => abortRef.current?.abort();
@@ -394,6 +415,9 @@ export default function ChatApp() {
             <b>{active?.title ?? "Новый чат"}</b>
             <small>{MODES[mode].label}</small>
           </div>
+          <button type="button" className={`sos-btn${sos ? " is-on" : ""}`} onClick={triggerSos} disabled={streaming} aria-pressed={sos} title="Вызвали к доске? Шпаргалка за 10 секунд">
+            SOS
+          </button>
           {active && active.messages.length > 0 && (
             <button type="button" className="icon-btn" onClick={onExport} aria-label="Экспорт чата" title="Экспорт в Markdown" disabled={streaming}>
               <Icon name="download" size={19} />
@@ -429,6 +453,13 @@ export default function ChatApp() {
                   </button>
                 ))}
               </div>
+              <button type="button" className={`sos-hero${sos ? " is-on" : ""}`} onClick={triggerSos}>
+                <span className="sos-hero-badge">SOS</span>
+                <span className="sos-hero-text">
+                  <b>Вызвали к доске?</b>
+                  <small>Жми — шпаргалка в 3 строки за 10 секунд</small>
+                </span>
+              </button>
               <ol className="howto">
                 <li><b>1</b> Выбери вкладку внизу</li>
                 <li><b>2</b> Напиши или кинь фото</li>
@@ -476,6 +507,8 @@ export default function ChatApp() {
           maxChars={maxChars}
           focusTick={focusTick}
           pickTick={pickTick}
+          sos={sos}
+          onCancelSos={() => setSos(false)}
           onToast={flash}
         />
       </main>

@@ -484,3 +484,44 @@ h3.md-h { font-size: 17px; } h4.md-h { font-size: 16px; } h5.md-h, h6.md-h { fon
 .bubble-thumbs.n3 { grid-template-columns: repeat(3, 90px); }
 .bubble-thumbs .bubble-thumb { margin: 0; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; }
 .bubble-thumbs.n1 .bubble-thumb { width: auto; aspect-ratio: auto; }
+
+
+/* ═════════ SOS у доски ═════════ */
+:root { --sos: #f43f5e; --sos-2: #fb923c; }
+.sos-btn {
+  flex: none; height: 34px; padding: 0 14px; border-radius: 999px; font-weight: 800; letter-spacing: 0.12em; font-size: 13px; color: #fff;
+  background: linear-gradient(180deg, var(--sos-2), var(--sos)); border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 16px rgba(244, 63, 94, 0.45); transition: transform 0.12s, box-shadow 0.2s;
+}
+.sos-btn:not(:disabled):hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 26px rgba(244, 63, 94, 0.7); }
+.sos-btn:not(:disabled):active { transform: scale(0.95); }
+.sos-btn.is-on { animation: sospulse 1.1s ease-in-out infinite; }
+@keyframes sospulse { 50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 4px rgba(244, 63, 94, 0.3); } }
+
+.sos-hero {
+  display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 12px 18px 12px 12px; border-radius: 18px; text-align: left; width: min(100%, 380px);
+  border: 1px solid rgba(244, 63, 94, 0.45); background: linear-gradient(180deg, rgba(244, 63, 94, 0.16), rgba(251, 146, 60, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 26px rgba(244, 63, 94, 0.18); transition: transform 0.15s, box-shadow 0.2s;
+}
+.sos-hero:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 34px rgba(244, 63, 94, 0.35); }
+.sos-hero.is-on { border-color: var(--sos); }
+.sos-hero-badge { flex: none; width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-weight: 800; letter-spacing: 0.08em; color: #fff; background: linear-gradient(180deg, var(--sos-2), var(--sos)); box-shadow: 0 0 20px rgba(244, 63, 94, 0.55); }
+.sos-hero-text { display: flex; flex-direction: column; }
+.sos-hero-text b { font-size: 16px; color: #fff; }
+.sos-hero-text small { font-size: 13px; color: #fecdd3; }
+
+.composer.is-sos { border-color: rgba(244, 63, 94, 0.6); box-shadow: inset 0 1px 0 var(--stroke-top), 0 0 0 3px rgba(244, 63, 94, 0.15), 0 0 30px rgba(244, 63, 94, 0.2); }
+.sos-banner { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px; border-radius: 12px; font-size: 13px; color: #ffe4e6; background: rgba(244, 63, 94, 0.14); border: 1px solid rgba(244, 63, 94, 0.35); }
+.sos-banner b { flex: none; }
+.sos-banner span { flex: 1; min-width: 0; }
+.sos-banner button { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fecdd3; }
+.sos-banner button:hover { background: rgba(244, 63, 94, 0.25); }
+
+.bubble-bot.is-sos { border-color: rgba(244, 63, 94, 0.45); background: linear-gradient(180deg, rgba(244, 63, 94, 0.1), rgba(17, 24, 39, 0.65)); font-size: 16.5px; line-height: 1.6; }
+.sos-label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #fda4af; margin-bottom: 6px; }
+.chip.is-on { color: #fff; border-color: var(--accent-2); background: rgba(56, 189, 248, 0.2); }
+
+@media (max-width: 860px) {
+  .hide-sm { display: none; }
+  .sos-btn { height: 32px; padding: 0 12px; }
+}

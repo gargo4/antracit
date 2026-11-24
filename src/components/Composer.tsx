@@ -37,6 +37,8 @@ type Props = {
   maxChars: number;
   focusTick: number;
   pickTick: number;
+  sos: boolean;
+  onCancelSos: () => void;
   onToast: (msg: string) => void;
 };
 
@@ -163,7 +165,7 @@ export function Composer(p: Props) {
       </div>
 
       <div
-        className={`composer glass${drag ? " is-drag" : ""}${listening ? " is-listening" : ""}`}
+        className={`composer glass${drag ? " is-drag" : ""}${listening ? " is-listening" : ""}${p.sos ? " is-sos" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDrag(true);
@@ -171,6 +173,16 @@ export function Composer(p: Props) {
         onDragLeave={() => setDrag(false)}
         onDrop={onDrop}
       >
+        {p.sos && (
+          <div className="sos-banner">
+            <b>🆘 SOS</b>
+            <span>Напиши тему или кинь фото — дам шпаргалку в 3 строки</span>
+            <button type="button" onClick={p.onCancelSos} aria-label="Выключить SOS">
+              <Icon name="close" size={14} />
+            </button>
+          </div>
+        )}
+
         {p.pending.length > 0 && (
           <div className="attach-strip">
             {p.pending.map((img, i) => (
@@ -222,7 +234,7 @@ export function Composer(p: Props) {
             ref={ta}
             rows={1}
             value={p.value}
-            placeholder={listening ? "Говори — я записываю…" : MODES[p.mode].placeholder}
+            placeholder={listening ? "Говори — я записываю…" : p.sos ? "Тема, вопрос или задача…" : MODES[p.mode].placeholder}
             onChange={(e) => p.onChange(e.target.value)}
             onPaste={onPaste}
             enterKeyHint="send"

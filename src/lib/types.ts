@@ -10,6 +10,8 @@ export type Msg = {
   thumb?: string;
   error?: boolean;
   mode?: Mode;
+  /** Сообщение/ответ в режиме «SOS у доски». */
+  sos?: boolean;
 };
 
 export type Chat = {
