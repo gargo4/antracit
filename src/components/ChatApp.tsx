@@ -10,12 +10,6 @@ import { MessageView } from "./MessageView";
 import { SettingsModal, UnlimitedModal } from "./Modals";
 import { Sidebar } from "./Sidebar";
 
-const SUGGESTIONS: Record<Mode, string[]> = {
-  chat: ["Реши уравнение 2x² − 5x + 2 = 0 по шагам", "Объясни, как работает рекурсия, на примере на Python", "Составь план подготовки к экзамену на 7 дней"],
-  compress: ["Сделай выжимку из длинной переписки или статьи", "Расшифруй мои заметки и выдели задачи", "Преврати конспект лекции в структуру"],
-  vision: ["Выпиши текст со скриншота", "Реши задачу с фотографии из учебника", "Объясни, что изображено на схеме"],
-};
-
 class ApiError extends Error {
   code?: string;
   constructor(message: string, code?: string) {
@@ -282,13 +276,6 @@ export default function ChatApp() {
               {status && !status.ready && (
                 <div className="notice">Сервер ещё не настроен: не задан ни один API-ключ (см. <code>.env.example</code>).</div>
               )}
-              <div className="suggest">
-                {SUGGESTIONS[mode].map((s) => (
-                  <button key={s} type="button" className="glass suggest-card" onClick={() => setInput(s)}>
-                    {s}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="feed">
