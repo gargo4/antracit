@@ -143,7 +143,13 @@ export async function POST(req: Request) {
     try {
       res = await fetch(`${ai.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...ai.extraHeaders },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+          // Google принимает ключ и так (нужно для ключей вида AQ.…)
+          ...(ai.baseUrl.includes("googleapis.com") ? { "x-goog-api-key": key } : {}),
+          ...ai.extraHeaders,
+        },
         body: body_(model),
         signal: ctrl.signal,
       });
