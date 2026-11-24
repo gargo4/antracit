@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+*.tsbuildinfo
+next-env.d.ts
+
+# Секреты — НИКОГДА не коммить
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+npm-debug.log*
+.vercel
