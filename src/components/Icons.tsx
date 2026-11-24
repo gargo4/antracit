@@ -15,6 +15,11 @@ const PATHS = {
   key: "M7 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM10 12h11M17 12v4M21 12v3",
   refresh: "M20 11a8 8 0 1 0-2 6M20 5v6h-6",
   folder: "M3 7h6l2 2h10v10H3z",
+  download: "M12 4v11M7 10l5 5 5-5M5 20h14",
+  down: "M12 5v14M6 13l6 6 6-6",
+  edit: "M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4",
+  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
+  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3",
 } as const;
 
 export type IconName = keyof typeof PATHS;

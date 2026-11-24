@@ -1,11 +1,11 @@
 "use client";
-import { Fragment, useState, type ReactNode } from "react";
+import katex from "katex";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "./Icons";
 
 // Лёгкий рендер markdown без внешних зависимостей и без dangerouslySetInnerHTML.
 // Поддержка: заголовки, списки, цитаты, таблицы, блоки кода, **жирный**, *курсив*, `код`,
-// формулы $...$ / $$...$$ (показываются читаемым моноширинным текстом; при желании
-// сюда можно подключить KaTeX).
+// формулы $...$ / $$...$$ и \\( \\) / \\[ \\] — через KaTeX (с запасным текстовым видом).
 
 const TEX: [RegExp, string][] = [
   [/\\cdot/g, "·"], [/\\times/g, "×"], [/\\div/g, "÷"], [/\\pm/g, "±"], [/\\leq?/g, "≤"], [/\\geq?/g, "≥"],
@@ -32,6 +32,25 @@ function toSup(e: string): string {
   return e.split("").every((c) => c in SUP) ? e.split("").map((c) => SUP[c]).join("") : "^(" + e + ")";
 }
 
+function MathView({ tex, block }: { tex: string; block?: boolean }) {
+  const html = useMemo(() => {
+    try {
+      return katex.renderToString(tex, { throwOnError: false, displayMode: Boolean(block), output: "html", strict: "ignore" });
+    } catch {
+      return null;
+    }
+  }, [tex, block]);
+  const cls = block ? "md-math md-math-block" : "md-math";
+  if (html === null) return <span className={cls}>{prettyMath(tex)}</span>;
+  // KaTeX экранирует ввод (trust: false по умолчанию), его HTML безопасен.
+  return block ? <div className={cls} dangerouslySetInnerHTML={{ __html: html }} /> : <span className={cls} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** Модели иногда пишут \\( … \\) и \\[ … \\] — приводим к $ … $ и $$ … $$. */
+function normalizeMath(text: string): string {
+  return text.replace(/\\\[([\s\S]*?)\\\]/g, (_, m: string) => `\n$$${m.trim()}$$\n`).replace(/\\\((.+?)\\\)/g, (_, m: string) => `$${m}$`);
+}
+
 const INLINE_SRC = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\$\$[^$]+\$\$)|(\$[^\s$](?:[^$\n]*[^\s$])?\$)|(\*[^*\s](?:[^*\n]*[^*\s])?\*)/g;
 
 function inline(text: string, kp: string): ReactNode[] {
@@ -45,8 +64,8 @@ function inline(text: string, kp: string): ReactNode[] {
     const k = `${kp}-${n++}`;
     if (m[1]) out.push(<code key={k} className="md-code">{t.slice(1, -1)}</code>);
     else if (m[2]) out.push(<strong key={k}>{inline(t.slice(2, -2), k)}</strong>);
-    else if (m[3]) out.push(<span key={k} className="md-math">{prettyMath(t.slice(2, -2))}</span>);
-    else if (m[4]) out.push(<span key={k} className="md-math">{prettyMath(t.slice(1, -1))}</span>);
+    else if (m[3]) out.push(<MathView key={k} tex={t.slice(2, -2)} />);
+    else if (m[4]) out.push(<MathView key={k} tex={t.slice(1, -1)} />);
     else out.push(<em key={k}>{t.slice(1, -1)}</em>);
     last = m.index + t.length;
   }
@@ -118,7 +137,7 @@ function blockStart(l: string, next?: string): boolean {
 }
 
 export function Markdown({ text }: { text: string }) {
-  const src = text.split("\n");
+  const src = normalizeMath(text).split("\n");
   const out: ReactNode[] = [];
   let i = 0;
   let k = 0;
@@ -150,7 +169,7 @@ export function Markdown({ text }: { text: string }) {
         if (i < src.length) buf.push(src[i++].replace("$$", ""));
         body = buf.join(" ");
       }
-      out.push(<div key={key} className="md-math md-math-block">{prettyMath(body.trim())}</div>);
+      out.push(<MathView key={key} tex={body.trim()} block />);
       continue;
     }
 

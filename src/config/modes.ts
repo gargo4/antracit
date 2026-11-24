@@ -6,22 +6,25 @@ export const MODE_ORDER: Mode[] = ["chat", "compress", "vision"];
 
 export const MODES: Record<
   Mode,
-  { label: string; hint: string; placeholder: string; category: string; defaultImagePrompt?: string }
+  { label: string; short: string; hint: string; placeholder: string; category: string; defaultImagePrompt?: string }
 > = {
   chat: {
     label: "Чат / Решение",
+    short: "Чат",
     hint: "Вопросы и пошаговый разбор задач",
     placeholder: "Задай вопрос или вставь задачу…",
     category: "Задачи и разборы",
   },
   compress: {
     label: "Сжатие / Расшифровка",
+    short: "Сжатие",
     hint: "Выжимка и структура из длинного текста",
     placeholder: "Вставь длинный текст или запутанную запись…",
     category: "Сжатие и расшифровка",
   },
   vision: {
     label: "Анализ по картинке",
+    short: "Фото",
     hint: "Разбор фото, скриншота, текст с изображения",
     placeholder: "Прикрепи фото и задай вопрос (необязательно)…",
     category: "Анализ фото",

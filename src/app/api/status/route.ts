@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     JSON.stringify({
       ready: keys.some((k) => k.configured),
       keys,
-      quota: quotaState(id),
+      quota: await quotaState(id),
       limits: { maxTextChars: limits.maxTextChars, maxImageBytes: limits.maxImageBytes },
       pinRequired: Boolean(process.env.ADMIN_PIN?.trim()),
       model: getAiConfig().model,

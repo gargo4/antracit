@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { KEY_LABELS } from "../config/modes";
 import type { KeyChoice, Settings, Status } from "../lib/types";
 import { Icon } from "./Icons";
@@ -45,6 +45,7 @@ type SettingsProps = {
 
 export function SettingsModal({ settings, status, onChange, onRefresh, onClearHistory, onClose }: SettingsProps) {
   const choose = (c: KeyChoice) => onChange({ ...settings, keySlot: c });
+  const [sure, setSure] = useState(false);
   const rows: { choice: KeyChoice; label: string; sub: string; dot: "ok" | "wait" | "off" }[] = [
     { choice: "auto", label: "Автовыбор", sub: "Сервер сам берёт первый рабочий ключ", dot: "ok" },
     ...[0, 1, 2].map((slot) => {
@@ -102,8 +103,8 @@ export function SettingsModal({ settings, status, onChange, onRefresh, onClearHi
         <button type="button" className="btn-ghost" onClick={onRefresh}>
           <Icon name="refresh" size={16} /> Обновить статус
         </button>
-        <button type="button" className="btn-ghost danger" onClick={onClearHistory}>
-          <Icon name="trash" size={16} /> Очистить историю
+        <button type="button" className={`btn-ghost danger${sure ? " is-armed" : ""}`} onClick={() => (sure ? onClearHistory() : setSure(true))}>
+          <Icon name="trash" size={16} /> {sure ? "Точно удалить всё?" : "Очистить историю"}
         </button>
       </div>
       {status && <small className="modal-foot">Модель: {status.model}</small>}

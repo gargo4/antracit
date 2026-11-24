@@ -83,13 +83,13 @@ export async function POST(req: Request) {
   }
 
   // ── 3. Бесплатный лимит ─────────────────────────────────────────
-  const q = quotaState(id);
+  const q = await quotaState(id);
   if (q.left !== null && q.left <= 0) {
     return fail(429, "quota", "Бесплатные запросы на сегодня закончились. Открой «Безлимит» или возвращайся завтра.", id, {
       "x-quota-left": "0",
     });
   }
-  consume(id);
+  await consume(id);
 
   // ── 4. Сообщения для нейросети ──────────────────────────────────
   const upstream: OutMsg[] = [{ role: "system", content: SYSTEM_PROMPTS[mode] }];
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
       clearTimeout(timer);
       req.signal.removeEventListener("abort", onClientAbort);
       if (req.signal.aborted) {
-        refund(id);
+        await refund(id);
         return new Response(null, { status: 499 });
       }
       markFailure(slot, model, 503, "");
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
         "X-Accel-Buffering": "no",
         "x-key-used": String(slot),
         "x-model-used": model,
-        "x-quota-left": String(quotaState(id).left ?? -1),
+        "x-quota-left": String((await quotaState(id)).left ?? -1),
       });
       if (id.isNew) headers.append("Set-Cookie", cookieHeader(id.uid));
       const stream = toTextStream(res.body, () => req.signal.removeEventListener("abort", onClientAbort));
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
   }
 
   // Все комбинации ключ×модель отказали. Технические коды пользователю не показываем.
-  refund(id);
+  await refund(id);
   console.error("[antracit] all attempts failed; last:", lastStatus, lastDetail);
   const hint = lastStatus === 400 || lastStatus === 422 ? friendlyUpstream(lastStatus, lastDetail, hasImage) : "";
   return fail(
