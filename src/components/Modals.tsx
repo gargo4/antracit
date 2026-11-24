@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { KEY_LABELS, LEVELS } from "../config/modes";
 import type { KeyChoice, Settings, Status } from "../lib/types";
+import { play } from "../lib/sound";
 import { Icon } from "./Icons";
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -28,7 +29,17 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} className={`switch${on ? " is-on" : ""}`} onClick={() => onChange(!on)}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className={`switch${on ? " is-on" : ""}`}
+      onClick={() => {
+        play("toggle");
+        onChange(!on);
+      }}
+    >
       <i />
     </button>
   );
@@ -68,12 +79,30 @@ export function SettingsModal({ settings, status, onChange, onRefresh, onClearHi
               role="radio"
               aria-checked={settings.level === l.id}
               className={settings.level === l.id ? "is-active" : ""}
-              onClick={() => onChange({ ...settings, level: l.id })}
+              onClick={() => {
+                if (settings.level !== l.id) play("toggle");
+                onChange({ ...settings, level: l.id });
+              }}
             >
               {l.label} <small>{l.hint}</small>
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="key-row">
+        <div className="key-text">
+          <b>Звуки</b>
+          <small>Щелчки, переключения, «дзынь» при ответе</small>
+        </div>
+        <Switch
+          label="Звуки"
+          on={settings.sound}
+          onChange={(v) => {
+            onChange({ ...settings, sound: v });
+            if (v) setTimeout(() => play("success"), 60);
+          }}
+        />
       </div>
 
       <p className="modal-note">

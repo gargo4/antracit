@@ -29,9 +29,10 @@ export type Settings = {
   fallback: boolean; // автопереключение на следующий ключ
   pin: string;
   level: Level; // «Просто» (школа) или «Подробно» (вуз)
+  sound: boolean; // звуки интерфейса
 };
 
-export const DEFAULT_SETTINGS: Settings = { keySlot: "auto", fallback: true, pin: "", level: "school" };
+export const DEFAULT_SETTINGS: Settings = { keySlot: "auto", fallback: true, pin: "", level: "school", sound: true };
 
 export type Status = {
   ready: boolean;

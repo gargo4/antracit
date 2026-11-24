@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { MAX_IMAGES, MODE_ORDER, MODES, type Mode } from "../config/modes";
+import { play } from "../lib/sound";
 import type { PendingImage } from "../lib/types";
 import { Icon, type IconName } from "./Icons";
 
@@ -80,6 +81,7 @@ export function Composer(p: Props) {
   const toggleVoice = () => {
     if (listening) {
       recRef.current?.stop();
+      play("micOff");
       return;
     }
     const R = getRecognition();
@@ -111,6 +113,7 @@ export function Composer(p: Props) {
       rec.start();
       recRef.current = rec;
       setListening(true);
+      play("micOn");
     } catch {
       p.onToast("Голосовой ввод сейчас недоступен");
     }
@@ -212,7 +215,15 @@ export function Composer(p: Props) {
           <button
             type="button"
             className="icon-btn attach-btn"
-            onClick={() => (full ? p.onToast(`Максимум ${MAX_IMAGES} фото за раз`) : fileRef.current?.click())}
+            onClick={() => {
+              if (full) {
+                play("error");
+                p.onToast(`Максимум ${MAX_IMAGES} фото за раз`);
+              } else {
+                play("tap");
+                fileRef.current?.click();
+              }
+            }}
             aria-label="Прикрепить фото"
             title="Фото: галерея, камера или Ctrl+V (до 4 страниц)"
           >

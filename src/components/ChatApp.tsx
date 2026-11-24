@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LEARN_TOPICS, LEVELS, MAX_IMAGES, MODES, PHOTO_ACTION_PREFIX, PHOTO_MODES, type Category, type Mode } from "../config/modes";
 import { splitStep, stripActions } from "../lib/actions";
+import { play, setSoundEnabled } from "../lib/sound";
 import { bumpStreak, loadStreak, plural, type Streak } from "../lib/streak";
 import { exportChat } from "../lib/export";
 import { compressImage } from "../lib/image";
@@ -100,7 +101,20 @@ export default function ChatApp() {
 
   useEffect(() => {
     if (ready) saveSettings(settings);
+    setSoundEnabled(settings.sound);
   }, [settings, ready]);
+
+  /** Открыть/закрыть шторку и окна — со звуком. */
+  const openSidebar = () => {
+    setSidebar(true);
+    play("open");
+  };
+  const closeSidebar = () => {
+    setSidebar((v) => {
+      if (v) play("close");
+      return false;
+    });
+  };
 
   // ── прокрутка ────────────────────────────────────────────────
   useEffect(() => {
@@ -161,6 +175,7 @@ export default function ChatApp() {
 
   const deleteChat = (id: string) => {
     if (streaming && id === activeId) return;
+    play("delete");
     setChats((prev) => prev.filter((c) => c.id !== id));
     if (id === activeId) setActiveId(null);
   };
@@ -173,6 +188,7 @@ export default function ChatApp() {
 
   const clearHistory = () => {
     if (streaming) return;
+    play("delete");
     setChats([]);
     setActiveId(null);
     images.current.clear();
@@ -198,12 +214,17 @@ export default function ChatApp() {
         flash(e instanceof Error ? e.message : "Не удалось обработать фото");
       }
     }
-    if (!done.length) return;
+    if (!done.length) {
+      play("error");
+      return;
+    }
+    play("photo");
     setPending((prev) => [...prev, ...done].slice(0, MAX_IMAGES));
     if (!PHOTO_MODES.includes(mode)) setMode("vision");
   };
 
   const changeMode = (m: Mode) => {
+    if (m !== mode) play("tab");
     setMode(m);
     if (!PHOTO_MODES.includes(m) && pending.length) setPending([]); // в «Решить» фото не прикрепляются
   };
@@ -255,6 +276,7 @@ export default function ChatApp() {
     setPending([]);
     setSos(false);
     setStreaming(true);
+    play("send");
     stick.current = true;
     setAtBottom(true);
 
@@ -303,17 +325,25 @@ export default function ChatApp() {
         patch(acc);
         const s = bumpStreak();
         setStreak(s);
-        if (s.firstToday && s.days > 1) flash(`🔥 Серия: ${s.days} ${plural(s.days, "день", "дня", "дней")} подряд! Так держать`);
+        if (s.firstToday && s.days > 1) {
+          play("success");
+          flash(`🔥 Серия: ${s.days} ${plural(s.days, "день", "дня", "дней")} подряд! Так держать`);
+        } else play("receive");
       }
     } catch (e) {
       if (ac.signal.aborted) {
         if (!acc) patch("Остановлено.", { error: true });
+        play("close");
       } else {
+        play("error");
         const err = e instanceof ApiError ? e : null;
         patch(acc ? `${acc}\n\n⚠️ Ответ прервался.` : err ? err.message : "Не удалось связаться с сервером. Проверь интернет и попробуй ещё раз.", {
           error: !acc,
         });
-        if (err?.code === "quota") setUnlimitedOpen(true);
+        if (err?.code === "quota") {
+          setUnlimitedOpen(true);
+          play("open");
+        }
         else if (!navigator.onLine) patch("Нет интернета. Подключись и нажми «Попробовать снова».", { error: true });
       }
     } finally {
@@ -377,17 +407,22 @@ export default function ChatApp() {
     run(label, [], { mode: active?.mode, sos: keepSos });
   };
 
-  const setLevel = (level: Settings["level"]) => setSettings((s) => ({ ...s, level }));
+  const setLevel = (level: Settings["level"]) => {
+    if (level !== settings.level) play("toggle");
+    setSettings((s) => ({ ...s, level }));
+  };
 
   /** Кнопка SOS: если уже есть текст или фото — сразу шпаргалка; иначе включаем режим и ждём тему. */
   const triggerSos = () => {
     if (streaming) return;
     setSidebar(false);
     navigator.vibrate?.(30); // короткий отклик на телефоне
+    if (!sos) play("sos");
     if (input.trim() || pending.length) {
       run(input, pending, { sos: true });
       return;
     }
+    if (sos) play("close");
     setSos((v) => !v);
     setFocusTick((t) => t + 1);
   };
@@ -422,7 +457,7 @@ export default function ChatApp() {
         category={category}
         status={status}
         streak={streak}
-        onClose={() => setSidebar(false)}
+        onClose={closeSidebar}
         onNew={newChat}
         onSelect={selectChat}
         onDelete={deleteChat}
@@ -431,18 +466,20 @@ export default function ChatApp() {
         onUnlimited={() => {
           setUnlimitedOpen(true);
           setSidebar(false);
+          play("open");
         }}
         onSettings={() => {
           refreshStatus();
           setSettingsOpen(true);
           setSidebar(false);
+          play("open");
         }}
       />
 
       <main className="main">
         {!online && <div className="offline">Нет интернета — проверь связь</div>}
         <header className="topbar glass">
-          <button type="button" className="icon-btn menu-btn" onClick={() => setSidebar(true)} aria-label="Открыть меню">
+          <button type="button" className="icon-btn menu-btn" onClick={openSidebar} aria-label="Открыть меню">
             <Icon name="menu" size={20} />
           </button>
           <div className="top-title">
@@ -464,7 +501,7 @@ export default function ChatApp() {
 
         <div className="scroll" ref={scroller} onScroll={onScroll}>
           {msgs.length === 0 ? (
-            <div className="hero">
+            <div className="hero" key={mode /* смена вкладки → экран плавно перестраивается */}>
               <div className="hero-logo">
                 <span className="hero-ring" />
                 <Logo size={68} />
@@ -557,7 +594,10 @@ export default function ChatApp() {
           onChange={setInput}
           pending={pending}
           onFiles={onFiles}
-          onRemoveImage={(i) => setPending((prev) => prev.filter((_, j) => j !== i))}
+          onRemoveImage={(i) => {
+            play("delete");
+            setPending((prev) => prev.filter((_, j) => j !== i));
+          }}
           onSend={send}
           onStop={stop}
           streaming={streaming}
@@ -565,7 +605,10 @@ export default function ChatApp() {
           focusTick={focusTick}
           pickTick={pickTick}
           sos={sos}
-          onCancelSos={() => setSos(false)}
+          onCancelSos={() => {
+            setSos(false);
+            play("close");
+          }}
           onToast={flash}
         />
       </main>
@@ -577,10 +620,21 @@ export default function ChatApp() {
           onChange={setSettings}
           onRefresh={refreshStatus}
           onClearHistory={clearHistory}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            play("close");
+          }}
         />
       )}
-      {unlimitedOpen && <UnlimitedModal status={status} onClose={() => setUnlimitedOpen(false)} />}
+      {unlimitedOpen && (
+        <UnlimitedModal
+          status={status}
+          onClose={() => {
+            setUnlimitedOpen(false);
+            play("close");
+          }}
+        />
+      )}
       {toast && (
         <div className="toast" role="status">
           {toast}

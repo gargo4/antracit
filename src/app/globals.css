@@ -562,3 +562,86 @@ h3.md-h { font-size: 17px; } h4.md-h { font-size: 16px; } h5.md-h, h6.md-h { fon
 .resume-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 0 8px var(--accent-2); }
 
 .offline { flex: none; text-align: center; font-size: 13px; padding: 7px 12px; border-radius: 12px; color: #fde68a; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.35); }
+
+
+/* ═════════ анимации ═════════ */
+:root { --spring: cubic-bezier(0.34, 1.56, 0.64, 1); --smooth: cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* главный экран: при смене вкладки элементы появляются каскадом */
+.hero > * { animation: heroIn 0.5s var(--smooth) both; }
+.hero > *:nth-child(1) { animation-delay: 0s; }
+.hero > *:nth-child(2) { animation-delay: 0.04s; }
+.hero > *:nth-child(3) { animation-delay: 0.08s; }
+.hero > *:nth-child(4) { animation-delay: 0.12s; }
+.hero > *:nth-child(5) { animation-delay: 0.16s; }
+.hero > *:nth-child(6) { animation-delay: 0.2s; }
+.hero > *:nth-child(7) { animation-delay: 0.24s; }
+@keyframes heroIn { from { opacity: 0; transform: translateY(14px) scale(0.98); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.hero-logo { animation: heroIn 0.5s var(--smooth) both, float 5s ease-in-out 0.6s infinite; }
+.topics .topic { animation: popIn 0.4s var(--spring) both; }
+.topics .topic:nth-child(2) { animation-delay: 0.05s; } .topics .topic:nth-child(3) { animation-delay: 0.1s; }
+.topics .topic:nth-child(4) { animation-delay: 0.15s; } .topics .topic:nth-child(5) { animation-delay: 0.2s; }
+.topics .topic:nth-child(6) { animation-delay: 0.25s; }
+@keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+
+/* кнопки «что дальше» выезжают по очереди */
+.next-steps { animation: none; }
+.next-steps .step-btn { animation: stepIn 0.42s var(--spring) both; }
+.next-steps .step-btn:nth-child(2) { animation-delay: 0.07s; }
+.next-steps .step-btn:nth-child(3) { animation-delay: 0.14s; }
+.next-steps .step-btn:nth-child(4) { animation-delay: 0.21s; }
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* отклик на нажатие */
+.chip, .topic, .mode, .icon-btn, .btn-ghost, .btn-unlimited, .cat, .chat-open, .level-switch button, .attach-add, .resume, .sos-hero { transition: transform 0.12s ease, background 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.chip:active, .topic:active, .mode:active, .icon-btn:not(:disabled):active, .btn-ghost:active, .btn-unlimited:active, .cat:active, .chat-open:active, .level-switch button:active, .attach-add:active, .resume:active, .sos-hero:active { transform: scale(0.94); }
+
+/* вкладки: иконка активной вкладки «подпрыгивает» */
+.mode.is-active svg { animation: tabBounce 0.45s var(--spring); }
+@keyframes tabBounce { 0% { transform: scale(0.6) rotate(-12deg); } 100% { transform: none; } }
+
+/* сообщения: пользователь «влетает» справа, ответ — слева */
+.msg-user { animation: inRight 0.35s var(--spring) both; }
+.msg-bot { animation: inLeft 0.35s var(--smooth) both; }
+@keyframes inRight { from { opacity: 0; transform: translateX(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes inLeft { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+
+/* кнопка отправки ↔ стоп */
+.send { transition: transform 0.15s, box-shadow 0.2s, background 0.2s; }
+.send.is-stop { animation: popIn 0.3s var(--spring); }
+.send:not(:disabled):hover { transform: translateY(-1px); }
+
+/* SOS: тряска при включении + пульс */
+.sos-btn.is-on { animation: shake 0.45s ease, sospulse 1.1s ease-in-out 0.45s infinite; }
+.composer.is-sos { animation: shake 0.4s ease; }
+.sos-banner { animation: stepIn 0.35s var(--spring) both; }
+@keyframes shake { 0%, 100% { transform: none; } 20% { transform: translateX(-4px) rotate(-1deg); } 40% { transform: translateX(4px) rotate(1deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+/* фото: миниатюры «прыгают» в ленту */
+.attach-tile { animation: popIn 0.35s var(--spring) both; }
+.attach-strip { animation: stepIn 0.3s var(--smooth) both; }
+
+/* окна и тосты пружинят */
+.modal { animation: modalIn 0.38s var(--spring) both; }
+@keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.92); } to { opacity: 1; transform: none; } }
+.toast { animation: toastIn 0.45s var(--spring) both; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 24px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0); } }
+.to-bottom { animation: popIn 0.3s var(--spring) both; }
+.offline { animation: stepIn 0.3s var(--smooth) both; }
+
+/* прогресс урока: текущий шаг вспыхивает */
+.lesson-dots i.is-done:last-of-type, .lesson-dots i.is-done:has(+ i:not(.is-done)) { animation: dotPop 0.6s var(--spring); }
+@keyframes dotPop { 0% { transform: scaleX(0.2); } 100% { transform: none; } }
+
+/* шторка на телефоне: пункты выезжают каскадом */
+@media (max-width: 860px) {
+  .sidebar.is-open .streak, .sidebar.is-open .btn-new, .sidebar.is-open .search, .sidebar.is-open .cat, .sidebar.is-open .chat-item, .sidebar.is-open .side-foot > * { animation: slideIn 0.4s var(--smooth) both; }
+  .sidebar.is-open .btn-new { animation-delay: 0.04s; }
+  .sidebar.is-open .search { animation-delay: 0.07s; }
+  .sidebar.is-open .cat:nth-child(1) { animation-delay: 0.1s; } .sidebar.is-open .cat:nth-child(2) { animation-delay: 0.12s; }
+  .sidebar.is-open .cat:nth-child(3) { animation-delay: 0.14s; } .sidebar.is-open .cat:nth-child(4) { animation-delay: 0.16s; }
+  .sidebar.is-open .cat:nth-child(5) { animation-delay: 0.18s; }
+  .sidebar.is-open .chat-item { animation-delay: 0.2s; }
+  .sidebar.is-open .side-foot > * { animation-delay: 0.22s; }
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }

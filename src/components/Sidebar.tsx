@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CATEGORIES, type Category } from "../config/modes";
+import { play } from "../lib/sound";
 import { plural, type Streak } from "../lib/streak";
 import type { Chat, Status } from "../lib/types";
 import { Icon, Logo } from "./Icons";
@@ -108,7 +109,10 @@ export function Sidebar(p: Props) {
 
         <nav className="cats" aria-label="Разделы">
           {CATEGORIES.map((c) => (
-            <button key={c.id} type="button" className={`cat${p.category === c.id ? " is-active" : ""}`} onClick={() => p.onCategory(c.id)}>
+            <button key={c.id} type="button" className={`cat${p.category === c.id ? " is-active" : ""}`} onClick={() => {
+                if (p.category !== c.id) play("tab");
+                p.onCategory(c.id);
+              }}>
               <span>{c.label}</span>
               <em>{counts[c.id]}</em>
             </button>
@@ -166,7 +170,10 @@ export function Sidebar(p: Props) {
                           <button type="button" className="chat-tool" onClick={() => { setEditing(c.id); setDraft(c.title); }} aria-label={`Переименовать «${c.title}»`}>
                             <Icon name="edit" size={14} />
                           </button>
-                          <button type="button" className="chat-tool" onClick={() => setConfirmDel(c.id)} aria-label={`Удалить «${c.title}»`}>
+                          <button type="button" className="chat-tool" onClick={() => {
+                            play("tap");
+                            setConfirmDel(c.id);
+                          }} aria-label={`Удалить «${c.title}»`}>
                             <Icon name="trash" size={15} />
                           </button>
                         </>

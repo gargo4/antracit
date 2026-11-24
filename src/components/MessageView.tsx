@@ -2,6 +2,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { PHOTO_ACTION_PREFIX, QUICK_ACTIONS } from "../config/modes";
 import { splitActions, splitStep } from "../lib/actions";
+import { play } from "../lib/sound";
 import { canSpeak, speak } from "../lib/speech";
 import { msgThumbs, type Msg } from "../lib/types";
 import { Icon, Logo } from "./Icons";
@@ -32,8 +33,10 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
   const toggleSpeak = () => {
     if (speaking) {
       stopRef.current?.();
+      play("micOff");
       return;
     }
+    play("micOn");
     setSpeaking(true);
     stopRef.current = speak(text, () => {
       setSpeaking(false);
@@ -42,6 +45,7 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
   };
 
   const copy = async () => {
+    play("tap");
     await copyText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
