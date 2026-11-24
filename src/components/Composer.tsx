@@ -4,7 +4,7 @@ import { MAX_IMAGES, MODE_ORDER, MODES, type Mode } from "../config/modes";
 import type { PendingImage } from "../lib/types";
 import { Icon, type IconName } from "./Icons";
 
-const MODE_ICON: Record<Mode, IconName> = { chat: "chat", compress: "compress", vision: "image" };
+const MODE_ICON: Record<Mode, IconName> = { chat: "chat", learn: "book", compress: "compress", vision: "image" };
 
 // Web Speech API (Chrome, Edge, Safari). Где её нет — кнопка микрофона скрыта.
 type Recognition = {
@@ -145,7 +145,7 @@ export function Composer(p: Props) {
 
   return (
     <div className="composer-wrap">
-      <div className="modes" role="tablist" aria-label="Режим работы" style={{ ["--i" as string]: activeIdx }}>
+      <div className="modes" role="tablist" aria-label="Режим работы" style={{ ["--i" as string]: activeIdx, ["--n" as string]: MODE_ORDER.length }}>
         <span className="mode-glider" aria-hidden="true" />
         {MODE_ORDER.map((m) => (
           <button
@@ -203,7 +203,7 @@ export function Composer(p: Props) {
             )}
             <div className="attach-meta">
               {p.pending.length} / {MAX_IMAGES} фото
-              <small>{p.mode === "compress" ? "перескажу коротко" : "разберу, что на фото"}</small>
+              <small>{p.mode === "compress" ? "перескажу коротко" : p.mode === "learn" ? "научу по этой теме" : "разберу, что на фото"}</small>
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LEVELS, MAX_IMAGES, MODES, PHOTO_ACTION_PREFIX, PHOTO_MODES, type Category, type Mode } from "../config/modes";
+import { LEARN_TOPICS, LEVELS, MAX_IMAGES, MODES, PHOTO_ACTION_PREFIX, PHOTO_MODES, type Category, type Mode } from "../config/modes";
 import { stripActions } from "../lib/actions";
 import { exportChat } from "../lib/export";
 import { compressImage } from "../lib/image";
@@ -21,9 +21,9 @@ class ApiError extends Error {
 }
 
 function makeTitle(text: string, hasImage: boolean, mode: Mode): string {
-  const t = text.replace(/\s+/g, " ").trim();
+  const t = text.replace(/\s+/g, " ").trim().replace(/^Научи меня:\s*/i, "Урок: ");
   const base = t.length > 42 ? t.slice(0, 42).trimEnd() + "…" : t;
-  return base || (hasImage ? (mode === "compress" ? "Пересказ по фото" : "Разбор фото") : "Новый чат");
+  return base || (hasImage ? (mode === "compress" ? "Пересказ по фото" : mode === "learn" ? "Урок по фото" : "Разбор фото") : "Новый чат");
 }
 
 type RunOpts = { mode?: Mode; base?: Msg[]; sos?: boolean };
@@ -453,6 +453,16 @@ export default function ChatApp() {
                   </button>
                 ))}
               </div>
+              {mode === "learn" && (
+                <div className="topics" aria-label="Популярные темы">
+                  {LEARN_TOPICS[settings.level].map((t) => (
+                    <button key={t} type="button" className="topic" onClick={() => run(`Научи меня: ${t}`, [], { mode: "learn" })}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {mode !== "learn" && (
               <button type="button" className={`sos-hero${sos ? " is-on" : ""}`} onClick={triggerSos}>
                 <span className="sos-hero-badge">SOS</span>
                 <span className="sos-hero-text">
@@ -460,11 +470,14 @@ export default function ChatApp() {
                   <small>Жми — шпаргалка в 3 строки за 10 секунд</small>
                 </span>
               </button>
+              )}
+              {mode !== "learn" && (
               <ol className="howto">
                 <li><b>1</b> Выбери вкладку внизу</li>
                 <li><b>2</b> Напиши или кинь фото</li>
                 <li><b>3</b> Жми кнопки под ответом</li>
               </ol>
+              )}
               {status && !status.ready && (
                 <div className="notice">Сервер ещё не настроен: не задан ни один API-ключ (см. <code>.env.example</code>).</div>
               )}

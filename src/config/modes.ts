@@ -1,9 +1,9 @@
 // Клиент-безопасный конфиг: здесь НЕТ секретов, файл импортируется и в браузере.
 
-export type Mode = "chat" | "compress" | "vision";
+export type Mode = "chat" | "learn" | "compress" | "vision";
 export type Level = "school" | "student";
 
-export const MODE_ORDER: Mode[] = ["chat", "compress", "vision"];
+export const MODE_ORDER: Mode[] = ["chat", "learn", "compress", "vision"];
 
 export const MODES: Record<
   Mode,
@@ -15,6 +15,14 @@ export const MODES: Record<
     hint: "Спроси что угодно или кинь задачу — разберу по шагам",
     placeholder: "Вопрос или задача…",
     category: "Задачи и вопросы",
+  },
+  learn: {
+    label: "Учиться",
+    short: "Учиться",
+    hint: "Выбери тему — научу по шагам, как репетитор, и проверю, понял ли ты",
+    placeholder: "Какую тему выучить?",
+    category: "Уроки",
+    defaultImagePrompt: "Научи меня этой теме по шагам.",
   },
   compress: {
     label: "Сжать текст",
@@ -44,6 +52,7 @@ export type Category = "all" | Mode;
 export const CATEGORIES: { id: Category; label: string }[] = [
   { id: "all", label: "Все чаты" },
   { id: "chat", label: MODES.chat.category },
+  { id: "learn", label: MODES.learn.category },
   { id: "compress", label: MODES.compress.category },
   { id: "vision", label: MODES.vision.category },
 ];
@@ -62,6 +71,12 @@ export const PHOTO_ACTION_PREFIX = "📷";
 export const MAX_IMAGES = 4;
 
 /** Вкладки, где можно прикреплять фото. В «Решить» фото переключает на «Фото». */
-export const PHOTO_MODES: Mode[] = ["compress", "vision"];
+export const PHOTO_MODES: Mode[] = ["learn", "compress", "vision"];
 
 export const KEY_LABELS = ["Ключ 1", "Ключ 2", "Запасной"] as const;
+
+/** Темы-подсказки на главном экране вкладки «Учиться» (по уровню). */
+export const LEARN_TOPICS: Record<Level, string[]> = {
+  school: ["Дроби", "Проценты", "Уравнения", "Таблица умножения", "Части речи", "Present Simple"],
+  student: ["Производная", "Логарифмы", "Интегралы", "Вероятность", "Пределы", "Матрицы"],
+};

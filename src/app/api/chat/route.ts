@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     return fail(400, "bad_json", "Некорректный запрос.", id);
   }
   const b = (body ?? {}) as { mode?: string; level?: string; sos?: unknown; messages?: unknown };
-  const mode: Mode = b.mode === "compress" || b.mode === "vision" ? b.mode : "chat";
+  const mode: Mode = b.mode === "learn" || b.mode === "compress" || b.mode === "vision" ? b.mode : "chat";
   const level: Level = b.level === "student" ? "student" : "school";
   const sos = b.sos === true; // «SOS у доски» — ответ в 3–4 строки
 

@@ -37,7 +37,7 @@ export function Sidebar(p: Props) {
   const [draft, setDraft] = useState("");
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  const counts: Record<Category, number> = { all: p.chats.length, chat: 0, compress: 0, vision: 0 };
+  const counts: Record<Category, number> = { all: p.chats.length, chat: 0, learn: 0, compress: 0, vision: 0 };
   p.chats.forEach((c) => (counts[c.mode] += 1));
 
   const q = query.trim().toLowerCase();
@@ -132,7 +132,7 @@ export function Sidebar(p: Props) {
                       }}
                       title={c.title}
                     >
-                      <Icon name={c.mode === "chat" ? "chat" : c.mode === "compress" ? "compress" : "image"} size={16} />
+                      <Icon name={c.mode === "chat" ? "chat" : c.mode === "learn" ? "book" : c.mode === "compress" ? "compress" : "image"} size={16} />
                       <span className="chat-title">{c.title}</span>
                     </button>
                   )}

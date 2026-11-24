@@ -1,7 +1,7 @@
 "use client";
 import { memo, useEffect, useRef, useState } from "react";
 import { PHOTO_ACTION_PREFIX, QUICK_ACTIONS } from "../config/modes";
-import { splitActions } from "../lib/actions";
+import { splitActions, splitStep } from "../lib/actions";
 import { canSpeak, speak } from "../lib/speech";
 import { msgThumbs, type Msg } from "../lib/types";
 import { Icon, Logo } from "./Icons";
@@ -24,7 +24,9 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
   const stopRef = useRef<(() => void) | null>(null);
   useEffect(() => setVoiceOk(canSpeak()), []);
   useEffect(() => () => stopRef.current?.(), []);
-  const { text, actions } = msg.role === "assistant" ? splitActions(msg.content, streaming) : { text: msg.content, actions: [] };
+  const parsed = msg.role === "assistant" ? splitActions(msg.content, streaming) : { text: msg.content, actions: [] };
+  const { text, step } = msg.role === "assistant" ? splitStep(parsed.text, streaming) : { text: parsed.text, step: null };
+  const actions = parsed.actions;
   const nextSteps = actions.length ? actions : QUICK_ACTIONS.map((a) => a.prompt);
 
   const toggleSpeak = () => {
@@ -80,6 +82,16 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRe
       <div className="bot-col">
         <div className={`bubble bubble-bot${msg.error ? " is-error" : ""}${msg.sos && !msg.error ? " is-sos" : ""}`}>
           {msg.sos && !msg.error && <div className="sos-label">🆘 Шпаргалка — можно читать вслух</div>}
+          {step && (
+            <div className="lesson-progress" aria-label={`Урок: шаг ${step.n} из ${step.total}`}>
+              <span>Урок · шаг {step.n} из {step.total}</span>
+              <div className="lesson-dots">
+                {Array.from({ length: step.total }, (_, i) => (
+                  <i key={i} className={i < step.n ? "is-done" : ""} />
+                ))}
+              </div>
+            </div>
+          )}
           {text ? (
             msg.error ? <div className="bubble-text">{text}</div> : <Markdown text={text} />
           ) : (
