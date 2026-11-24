@@ -1,4 +1,5 @@
 import { MODES } from "../config/modes";
+import { stripActions } from "./actions";
 import type { Chat } from "./types";
 
 export function chatToMarkdown(chat: Chat): string {
@@ -6,7 +7,7 @@ export function chatToMarkdown(chat: Chat): string {
   const head = `# ${chat.title}\n\n_${MODES[chat.mode].label} · ${date} · ANTRACIT_\n`;
   const body = chat.messages
     .filter((m) => m.content.trim())
-    .map((m) => (m.role === "user" ? `## 🧑 Вы${m.thumb ? " (с фото)" : ""}\n\n${m.content}` : `## ⬡ ANTRACIT\n\n${m.content}`))
+    .map((m) => (m.role === "user" ? `## 🧑 Вы${m.thumb ? " (с фото)" : ""}\n\n${m.content}` : `## ⬡ ANTRACIT\n\n${stripActions(m.content)}`))
     .join("\n\n---\n\n");
   return `${head}\n${body}\n`;
 }

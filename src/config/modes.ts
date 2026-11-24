@@ -1,6 +1,7 @@
 // Клиент-безопасный конфиг: здесь НЕТ секретов, файл импортируется и в браузере.
 
 export type Mode = "chat" | "compress" | "vision";
+export type Level = "school" | "student";
 
 export const MODE_ORDER: Mode[] = ["chat", "compress", "vision"];
 
@@ -9,28 +10,33 @@ export const MODES: Record<
   { label: string; short: string; hint: string; placeholder: string; category: string; defaultImagePrompt?: string }
 > = {
   chat: {
-    label: "Чат / Решение",
-    short: "Чат",
-    hint: "Вопросы и пошаговый разбор задач",
-    placeholder: "Задай вопрос или вставь задачу…",
-    category: "Задачи и разборы",
+    label: "Решить задачу",
+    short: "Решить",
+    hint: "Спроси что угодно или кинь задачу — разберу по шагам",
+    placeholder: "Вопрос или задача…",
+    category: "Задачи и вопросы",
   },
   compress: {
-    label: "Сжатие / Расшифровка",
-    short: "Сжатие",
-    hint: "Выжимка и структура из длинного текста",
-    placeholder: "Вставь длинный текст или запутанную запись…",
-    category: "Сжатие и расшифровка",
+    label: "Сжать текст",
+    short: "Сжать",
+    hint: "Вставь длинный текст — сделаю коротко и понятно",
+    placeholder: "Вставь длинный текст…",
+    category: "Сжатые тексты",
   },
   vision: {
-    label: "Анализ по картинке",
+    label: "Разобрать фото",
     short: "Фото",
-    hint: "Разбор фото, скриншота, текст с изображения",
-    placeholder: "Прикрепи фото и задай вопрос (необязательно)…",
-    category: "Анализ фото",
-    defaultImagePrompt: "Разбери это изображение: выпиши текст, если он есть, и поясни, что на нём.",
+    hint: "Сфоткай задачу, страницу или экран — разберу, что там",
+    placeholder: "Фото — кнопка слева 👈",
+    category: "Фото",
+    defaultImagePrompt: "Разбери это фото.",
   },
 };
+
+export const LEVELS: { id: Level; label: string; hint: string }[] = [
+  { id: "school", label: "Просто", hint: "как для школьника" },
+  { id: "student", label: "Подробно", hint: "как для студента" },
+];
 
 export type Category = "all" | Mode;
 
@@ -41,10 +47,14 @@ export const CATEGORIES: { id: Category; label: string }[] = [
   { id: "vision", label: MODES.vision.category },
 ];
 
+/** Запасные кнопки — если модель не предложила свои. */
 export const QUICK_ACTIONS: { label: string; prompt: string }[] = [
-  { label: "Короче", prompt: "Сделай свой предыдущий ответ короче, оставь только главное." },
-  { label: "Проще", prompt: "Объясни проще, как для новичка, без сложных терминов." },
-  { label: "Подробнее", prompt: "Разверни ответ подробнее, с примером." },
+  { label: "Короче", prompt: "Короче" },
+  { label: "Ещё проще", prompt: "Объясни ещё проще" },
+  { label: "Пример", prompt: "Покажи на примере" },
 ];
+
+/** Кнопка, которая не пишет в чат, а открывает выбор фото. */
+export const PHOTO_ACTION_PREFIX = "📷";
 
 export const KEY_LABELS = ["Ключ 1", "Ключ 2", "Запасной"] as const;

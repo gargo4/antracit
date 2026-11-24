@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MODES, type Category, type Mode } from "../config/modes";
+import { LEVELS, MODES, PHOTO_ACTION_PREFIX, type Category, type Mode } from "../config/modes";
+import { stripActions } from "../lib/actions";
 import { exportChat } from "../lib/export";
 import { compressImage } from "../lib/image";
 import { loadChats, loadSettings, saveChats, saveSettings, uid } from "../lib/storage";
@@ -44,6 +45,7 @@ export default function ChatApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [focusTick, setFocusTick] = useState(0);
+  const [pickTick, setPickTick] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,7 +204,10 @@ export default function ChatApp() {
 
     const history = baseMsgs
       .filter((m) => !m.error && m.content.trim())
-      .map((m) => ({ role: m.role, content: m.thumb ? `${m.content}\n[к сообщению было приложено изображение]` : m.content }));
+      .map((m) => {
+        const content = m.role === "assistant" ? stripActions(m.content) : m.content;
+        return { role: m.role, content: m.thumb ? `${content}\n[к сообщению было приложено изображение]` : content };
+      });
 
     setChats((prev) => {
       const exists = prev.some((c) => c.id === chatId);
@@ -241,6 +246,7 @@ export default function ChatApp() {
         },
         body: JSON.stringify({
           mode: useMode,
+          level: settings.level,
           messages: [...history, { role: "user", content: text, ...(image ? { image: image.dataUrl } : {}) }],
         }),
       });
@@ -311,6 +317,18 @@ export default function ChatApp() {
     flash(how === "download" ? "Чат сохранён в файл .md" : "Чат скопирован в буфер обмена");
   };
 
+  /** Нажатие на кнопку, которую предложил ИИ. */
+  const onAction = (label: string) => {
+    if (label.startsWith(PHOTO_ACTION_PREFIX)) {
+      changeMode("vision");
+      setPickTick((t) => t + 1); // откроет выбор фото
+      return;
+    }
+    run(label, null, { mode: active?.mode });
+  };
+
+  const setLevel = (level: Settings["level"]) => setSettings((s) => ({ ...s, level }));
+
   const send = () => run(input, pending);
   const stop = () => abortRef.current?.abort();
 
@@ -372,7 +390,28 @@ export default function ChatApp() {
                 <Logo size={68} />
               </div>
               <h1>ANTRACIT</h1>
-              <p>{MODES[mode].hint}. Выбери режим ниже и пиши — всё уже настроено.</p>
+              <p>{MODES[mode].hint}</p>
+              <div className="level-switch" role="radiogroup" aria-label="Как объяснять">
+                <span>Объяснять:</span>
+                {LEVELS.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={settings.level === l.id}
+                    className={settings.level === l.id ? "is-active" : ""}
+                    onClick={() => setLevel(l.id)}
+                    title={l.hint}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+              <ol className="howto">
+                <li><b>1</b> Выбери вкладку внизу</li>
+                <li><b>2</b> Напиши или кинь фото</li>
+                <li><b>3</b> Жми кнопки под ответом</li>
+              </ol>
               {status && !status.ready && (
                 <div className="notice">Сервер ещё не настроен: не задан ни один API-ключ (см. <code>.env.example</code>).</div>
               )}
@@ -386,7 +425,7 @@ export default function ChatApp() {
                   streaming={streaming && m.id === msgs[msgs.length - 1].id}
                   isLastBot={!streaming && m.id === lastBotId}
                   isLastUser={!streaming && m.id === lastUserId}
-                  onQuick={(prompt) => run(prompt, null, { mode: active?.mode })}
+                  onAction={onAction}
                   onRegenerate={regenerate}
                   onEdit={editLast}
                 />
@@ -414,6 +453,7 @@ export default function ChatApp() {
           streaming={streaming}
           maxChars={maxChars}
           focusTick={focusTick}
+          pickTick={pickTick}
           onToast={flash}
         />
       </main>

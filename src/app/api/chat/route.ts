@@ -1,7 +1,8 @@
 // Единственная точка, где вызывается нейросеть. API-ключи читаются здесь, на сервере,
 // и никогда не попадают в браузер.
-import { getAiConfig, getLimits, SYSTEM_PROMPTS } from "../../../config/ai.server";
-import type { Mode } from "../../../config/modes";
+import { getAiConfig, getLimits } from "../../../config/ai.server";
+import { buildSystemPrompt } from "../../../config/prompts";
+import type { Level, Mode } from "../../../config/modes";
 import { getKey, isReady, markFailure, markSuccess, orderedSlots, shouldRotate } from "../../../lib/keys";
 import { consume, cookieHeader, identify, quotaState, refund, type Identity } from "../../../lib/quota";
 
@@ -43,8 +44,9 @@ export async function POST(req: Request) {
   } catch {
     return fail(400, "bad_json", "Некорректный запрос.", id);
   }
-  const b = (body ?? {}) as { mode?: string; messages?: unknown };
+  const b = (body ?? {}) as { mode?: string; level?: string; messages?: unknown };
   const mode: Mode = b.mode === "compress" || b.mode === "vision" ? b.mode : "chat";
+  const level: Level = b.level === "student" ? "student" : "school";
 
   const raw = Array.isArray(b.messages) ? b.messages : [];
   const msgs: InMsg[] = [];
@@ -92,7 +94,7 @@ export async function POST(req: Request) {
   await consume(id);
 
   // ── 4. Сообщения для нейросети ──────────────────────────────────
-  const upstream: OutMsg[] = [{ role: "system", content: SYSTEM_PROMPTS[mode] }];
+  const upstream: OutMsg[] = [{ role: "system", content: buildSystemPrompt(mode, level) }];
   msgs.forEach((m, i) => {
     const isLast = i === msgs.length - 1;
     const text = isLast ? m.content : m.content.slice(0, limits.maxHistoryItemChars);

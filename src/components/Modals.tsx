@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
-import { KEY_LABELS } from "../config/modes";
+import { KEY_LABELS, LEVELS } from "../config/modes";
 import type { KeyChoice, Settings, Status } from "../lib/types";
 import { Icon } from "./Icons";
 
@@ -58,6 +58,24 @@ export function SettingsModal({ settings, status, onChange, onRefresh, onClearHi
 
   return (
     <Modal title="Настройки и ключи" onClose={onClose}>
+      <div className="setting-block">
+        <b>Как объяснять</b>
+        <div className="level-switch level-switch-wide" role="radiogroup" aria-label="Как объяснять">
+          {LEVELS.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              role="radio"
+              aria-checked={settings.level === l.id}
+              className={settings.level === l.id ? "is-active" : ""}
+              onClick={() => onChange({ ...settings, level: l.id })}
+            >
+              {l.label} <small>{l.hint}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p className="modal-note">
         Сами ключи хранятся только на сервере (файл <code>.env</code>) — здесь выбирается, какой из них использовать.
       </p>

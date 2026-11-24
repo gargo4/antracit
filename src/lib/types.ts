@@ -1,4 +1,4 @@
-import type { Mode } from "../config/modes";
+import type { Level, Mode } from "../config/modes";
 
 export type Msg = {
   id: string;
@@ -24,9 +24,10 @@ export type Settings = {
   keySlot: KeyChoice;
   fallback: boolean; // автопереключение на следующий ключ
   pin: string;
+  level: Level; // «Просто» (школа) или «Подробно» (вуз)
 };
 
-export const DEFAULT_SETTINGS: Settings = { keySlot: "auto", fallback: true, pin: "" };
+export const DEFAULT_SETTINGS: Settings = { keySlot: "auto", fallback: true, pin: "", level: "school" };
 
 export type Status = {
   ready: boolean;

@@ -1,6 +1,7 @@
 "use client";
 import { memo, useState } from "react";
-import { QUICK_ACTIONS } from "../config/modes";
+import { PHOTO_ACTION_PREFIX, QUICK_ACTIONS } from "../config/modes";
+import { splitActions } from "../lib/actions";
 import type { Msg } from "../lib/types";
 import { Icon, Logo } from "./Icons";
 import { copyText, Markdown } from "./Markdown";
@@ -10,16 +11,18 @@ type Props = {
   streaming: boolean; // этот ответ сейчас печатается
   isLastBot: boolean; // под последним ответом — «Короче / Проще», «Ещё раз»
   isLastUser: boolean; // последнее сообщение пользователя можно изменить
-  onQuick: (prompt: string) => void;
+  onAction: (label: string) => void;
   onRegenerate: () => void;
   onEdit: () => void;
 };
 
-function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onQuick, onRegenerate, onEdit }: Props) {
+function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onAction, onRegenerate, onEdit }: Props) {
   const [copied, setCopied] = useState(false);
+  const { text, actions } = msg.role === "assistant" ? splitActions(msg.content, streaming) : { text: msg.content, actions: [] };
+  const nextSteps = actions.length ? actions : QUICK_ACTIONS.map((a) => a.prompt);
 
   const copy = async () => {
-    await copyText(msg.content);
+    await copyText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
   };
@@ -54,8 +57,8 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onQuick, onReg
       </div>
       <div className="bot-col">
         <div className={`bubble bubble-bot${msg.error ? " is-error" : ""}`}>
-          {msg.content ? (
-            msg.error ? <div className="bubble-text">{msg.content}</div> : <Markdown text={msg.content} />
+          {text ? (
+            msg.error ? <div className="bubble-text">{text}</div> : <Markdown text={text} />
           ) : (
             <div className="typing" aria-label="ANTRACIT думает">
               <i />
@@ -64,8 +67,18 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onQuick, onReg
               <span>Думаю…</span>
             </div>
           )}
-          {streaming && msg.content && <span className="caret" />}
+          {streaming && text && <span className="caret" />}
         </div>
+
+        {isLastBot && !msg.error && msg.content && (
+          <div className="next-steps" aria-label="Что дальше">
+            {nextSteps.map((label) => (
+              <button key={label} type="button" className={`step-btn${label.startsWith(PHOTO_ACTION_PREFIX) ? " is-photo" : ""}`} onClick={() => onAction(label)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {!streaming && msg.content && (
           <div className="msg-actions">
@@ -75,17 +88,10 @@ function MessageViewImpl({ msg, streaming, isLastBot, isLastUser, onQuick, onReg
               </button>
             )}
             {isLastBot && (
-              <button type="button" className="chip" onClick={onRegenerate} title="Сгенерировать ответ заново">
-                <Icon name="refresh" size={14} /> Ещё раз
+              <button type="button" className="chip" onClick={onRegenerate} title="Ответить заново">
+                <Icon name="refresh" size={14} /> {msg.error ? "Попробовать снова" : "Ещё раз"}
               </button>
             )}
-            {isLastBot &&
-              !msg.error &&
-              QUICK_ACTIONS.map((a) => (
-                <button key={a.label} type="button" className="chip chip-accent" onClick={() => onQuick(a.prompt)}>
-                  {a.label}
-                </button>
-              ))}
           </div>
         )}
       </div>
@@ -102,5 +108,5 @@ export const MessageView = memo(
     a.streaming === b.streaming &&
     a.isLastBot === b.isLastBot &&
     a.isLastUser === b.isLastUser &&
-    (!(b.isLastBot || b.isLastUser) || (a.onQuick === b.onQuick && a.onRegenerate === b.onRegenerate && a.onEdit === b.onEdit)),
+    (!(b.isLastBot || b.isLastUser) || (a.onAction === b.onAction && a.onRegenerate === b.onRegenerate && a.onEdit === b.onEdit)),
 );

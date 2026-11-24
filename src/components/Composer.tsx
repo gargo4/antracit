@@ -36,6 +36,7 @@ type Props = {
   streaming: boolean;
   maxChars: number;
   focusTick: number;
+  pickTick: number;
   onToast: (msg: string) => void;
 };
 
@@ -66,6 +67,11 @@ export function Composer(p: Props) {
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
   }, [p.focusTick]);
+
+  // кнопка «📷 …» от ИИ открывает выбор фото
+  useEffect(() => {
+    if (p.pickTick > 0) fileRef.current?.click();
+  }, [p.pickTick]);
 
   useEffect(() => () => recRef.current?.stop(), []);
 
